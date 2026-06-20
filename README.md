@@ -114,4 +114,5 @@ in **System Settings → Privacy & Security**, restart if prompted, then re-run
 - `view.py` — live OpenCV preview + `--headless` throughput test.
 - `vcam.py` — virtual-camera bridge (needs OBS).
 - `diag.py` — protocol-framing verification tool used to confirm the packet layout.
+- `docs/useeplus-protocol.md` — full protocol spec, framing table, and the package bug.
 - `requirements.txt` — pinned deps.
