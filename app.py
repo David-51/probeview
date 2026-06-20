@@ -26,13 +26,15 @@ class ProbeViewApp:
         self.root = root
         self.root.title("ProbeView Endoscope")
         self.root.configure(bg="#1e1e1e")
+        self.root.minsize(480, 400)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        self.video = tk.Label(root, bg="#000000")
-        self.video.pack(padx=10, pady=(10, 6))
-
+        # Button bar pinned to the bottom; video fills the rest and scales with it.
         bar = tk.Frame(root, bg="#1e1e1e")
-        bar.pack(fill="x", padx=10, pady=(0, 10))
+        bar.pack(side="bottom", fill="x", padx=10, pady=(0, 10))
+
+        self.video = tk.Label(root, bg="#000000")
+        self.video.pack(side="top", fill="both", expand=True, padx=10, pady=(10, 6))
         self.save_btn = tk.Button(bar, text="Save Frame", command=self.save_frame,
                                   width=14, state="disabled")
         self.save_btn.pack(side="left")
@@ -77,10 +79,17 @@ class ProbeViewApp:
             return
         jpeg = self.latest_jpeg
         if jpeg:
-            arr = cv2.imdecode(
-                __import__("numpy").frombuffer(jpeg, dtype="uint8"), cv2.IMREAD_COLOR
-            )
+            import numpy as np
+            arr = cv2.imdecode(np.frombuffer(jpeg, dtype="uint8"), cv2.IMREAD_COLOR)
             if arr is not None:
+                # Scale to the current video-area size, preserving 4:3 (letterboxed).
+                vw = max(1, self.video.winfo_width())
+                vh = max(1, self.video.winfo_height())
+                h, w = arr.shape[:2]
+                if vw > 10 and vh > 10:
+                    scale = min(vw / w, vh / h)
+                    arr = cv2.resize(arr, (max(1, int(w * scale)), max(1, int(h * scale))),
+                                     interpolation=cv2.INTER_AREA if scale < 1 else cv2.INTER_LINEAR)
                 rgb = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
                 self.latest_imgtk = ImageTk.PhotoImage(Image.fromarray(rgb))
                 self.video.config(image=self.latest_imgtk)
