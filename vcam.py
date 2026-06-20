@@ -15,7 +15,7 @@ import sys
 
 import pyvirtualcam
 
-from supercamera import Camera
+from upp_camera import Camera
 
 W, H, FPS = 640, 480, 20
 

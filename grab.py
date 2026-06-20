@@ -9,7 +9,7 @@ Run:  .venv/bin/python grab.py [--index N] [--out PATH]
 import argparse
 import sys
 
-from supercamera import Camera, list_devices
+from upp_camera import Camera, list_devices
 
 
 def main():
@@ -25,8 +25,7 @@ def main():
     print(f"found {len(devs)} device(s): " + ", ".join(repr(d) for d in devs))
 
     with Camera(index=args.index) as cam:
-        print(f"opened: {cam.idVendor if hasattr(cam,'idVendor') else ''} "
-              f"serial={cam.serial_number} resolution={cam.resolution}")
+        print(f"opened: serial={cam.serial_number} resolution={cam.resolution}")
         jpeg = cam.read_jpeg()
         if not jpeg:
             sys.exit("FATAL: read_jpeg() returned no frame within timeout.")

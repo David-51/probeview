@@ -15,7 +15,7 @@ import time
 
 import usb.core
 
-from supercamera import Camera
+from upp_camera import Camera
 
 
 def headless(cam, seconds):
@@ -46,7 +46,7 @@ def headless(cam, seconds):
 def windowed(cam):
     import cv2
 
-    win = "supercamera endoscope — press q to quit"
+    win = "supercamera endoscope  (q to quit)"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
     frames = 0
     start = time.monotonic()

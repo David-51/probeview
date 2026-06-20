@@ -16,10 +16,13 @@ the proprietary `com.useeplus.protocol`, not UVC. This drives it directly.
 | 5 | live preview / sustained stream | ✅ |
 | 6 | system virtual camera | ⛔ needs OBS (see below) |
 
-Step 4 **and** Step 5 pass. Single-frame proof saved and verified at 640×480.
-Sustained headless stream measured **485 frames / 30 s = 16.2 FPS, 0 USB errors**.
-Step 6 is blocked only by a missing one-time dependency (OBS Virtual Camera), not by
-the device or our code.
+Step 4 **and** Step 5 pass with **full, untruncated 640×480 frames**. Sustained
+stream ~15.5 FPS, 0 decode failures, 0 USB errors. Step 6 is blocked only by a
+missing one-time dependency (OBS Virtual Camera), not by the device or our code.
+
+> The PyPI `supercamera` package produced half-gray, truncated frames. We replaced
+> its reader with [`upp_camera.py`](upp_camera.py), a correct port of the protocol —
+> see **How it works**.
 
 ## Confirmed hardware
 
@@ -48,17 +51,38 @@ variants (long-press the device button also toggles lenses).
 
 ## How it works
 
-The [`supercamera`](https://github.com/Revise-Robotics/supercamera-endoscope) PyPI
-package (v0.1.0) already implements the init handshake and frame reassembly; our
-scripts are thin wrappers around its `Camera` API. The init sequence it performs:
-set interface 1 to alt-setting 1, drain the iAP heartbeat, send `MAGIC_INIT`
-(`FF 55 FF 55 EE 10`) on the iAP OUT endpoint and `CONNECT_CMD` (`BB AA 05 00 00`)
-on the bulk OUT endpoint, then read bulk IN, strip the 12-byte `AA BB …` packet
-header, and reassemble JPEGs between `FFD8` and `FFD9`.
+`upp_camera.py` drives the device directly over libusb (pyusb), ported from the
+hbens C++ PoC and verified against this hardware with `diag.py`.
 
-Reference decodes (cloned to `reference/`, gitignored): `supercamera-endoscope`
-(primary), `hbens/geek-szitman-supercamera` (C++ PoC), `MAkcanca/useeplus-linux-driver`
-(authoritative framing), `jmz3/EndoscopeCamera`.
+**Init:** claim interfaces 0 and 1, drain the iAP heartbeat, set interface 1 to
+alt-setting 1, `clear_halt` the bulk OUT endpoint, send `MAGIC_INIT`
+(`FF 55 FF 55 EE 10`) on iAP OUT (`0x02`) and `CONNECT_CMD` (`BB AA 05 00 00`) on
+bulk OUT (`0x01`), then read bulk IN (`0x81`).
+
+**Framing** — each USB packet is `[5-byte USB header][7-byte cam header][JPEG chunk]`:
+
+| Field | Bytes | Notes |
+|-------|-------|-------|
+| magic | 2 (LE) | `0xBBAA` (`AA BB` on the wire) |
+| cid | 1 | camera id, `7` or `11` — device splits each frame's head/tail across both |
+| length | 2 (LE) | cam header + payload (not the 5-byte USB header) |
+| fid | 1 | **frame id — frame boundary marker** |
+| cam_num, flags, g_sensor | 6 | flags bit 1 = button press |
+
+Read **one packet per bulk transfer** (`0x400` bytes), accept `cid ∈ {7,11}`, append
+the payload (from offset 12), and **emit a frame when `fid` changes**. The first two
+frames after connect are partial and discarded.
+
+**Why not the PyPI package:** [`supercamera`](https://github.com/Revise-Robotics/supercamera-endoscope)
+v0.1.0 reads 64 KB at once and reassembles by scanning for `FFD8`/`FFD9`, stripping
+only the *leading* 12-byte header. Each 64 KB read coalesces dozens of packets whose
+*interior* headers stay embedded in the JPEG → truncated, half-gray frames and
+`premature end of data segment` warnings. Reassembling by `fid` from 1 KB packets
+fixes it completely.
+
+Reference decodes (cloned to `reference/`, gitignored): `hbens/geek-szitman-supercamera`
+(C++ PoC — the framing we ported), `MAkcanca/useeplus-linux-driver` (kernel driver),
+`jmz3/EndoscopeCamera`, `supercamera-endoscope` (PyPI source).
 
 ## Step 6 — virtual camera prerequisite
 
@@ -76,15 +100,18 @@ in **System Settings → Privacy & Security**, restart if prompted, then re-run
 - **Python 3.14** (system default) lacks some wheels; the venv is built on **3.13.3**.
 - **libusb** (Homebrew 1.0.30) at `/opt/homebrew/lib/libusb-1.0.dylib`. pyusb found
   the backend on its own here; `probe.py` falls back to that explicit path if not.
-- **Per-frame `Corrupt JPEG data: premature end of data segment`** warnings during
-  streaming are from libjpeg, non-fatal: the upstream reassembler returns at the
-  first `FFD9`, which is sometimes a false marker inside entropy data, slightly
-  truncating frames. They still decode and display. Cosmetic, upstream — not fixed here.
+- **Frames stream sideways** (90° rotated) — the sensor's native orientation is
+  portrait. Left raw by choice; rotate downstream if you want upright.
+- The old `Corrupt JPEG data: premature end of data segment` flood and half-gray
+  frames came entirely from the PyPI package's reassembler; `upp_camera.py` removes
+  both.
 
 ## Files
 
+- `upp_camera.py` — the corrected protocol reader (`Camera` API). All scripts use it.
 - `probe.py` — find device, claim interface 1.
 - `grab.py` — save one JPEG (minimum proof).
 - `view.py` — live OpenCV preview + `--headless` throughput test.
 - `vcam.py` — virtual-camera bridge (needs OBS).
+- `diag.py` — protocol-framing verification tool used to confirm the packet layout.
 - `requirements.txt` — pinned deps.
