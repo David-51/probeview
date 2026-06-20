@@ -62,22 +62,45 @@ def list_devices():
 class Camera:
     def __init__(self, index=0, timeout=5.0):
         self._timeout = timeout
+        self._index = index
         self._dev = None
         self._buf = bytearray()
         self._cur_fid = None
         self._frames_read = 0
+        self._open()
+
+    def _find(self):
         devs = list_devices()
         if not devs:
             raise RuntimeError(
                 "No supercamera device found. Known IDs: "
                 + ", ".join(f"{v:04x}:{p:04x}" for v, p in KNOWN_DEVICES)
             )
-        if index >= len(devs):
-            raise RuntimeError(f"index {index} out of range ({len(devs)} found)")
-        self._open(devs[index])
+        if self._index >= len(devs):
+            raise RuntimeError(f"index {self._index} out of range ({len(devs)} found)")
+        return devs[self._index]
 
-    def _open(self, dev):
-        self._dev = dev
+    def _open(self, attempts=3):
+        """Open + handshake, with recovery. Back-to-back runs can catch the device
+        mid-re-enumeration; on a transient USB error we reset, settle, re-find, retry."""
+        last = None
+        for attempt in range(attempts):
+            dev = self._find()
+            self._dev = dev
+            try:
+                self._init_device(dev)
+                return
+            except usb.core.USBError as e:
+                last = e
+                try:
+                    dev.reset()           # recovery only — not a routine teardown step
+                except Exception:
+                    pass
+                usb.util.dispose_resources(dev)
+                time.sleep(1.5)           # let it re-enumerate
+        raise RuntimeError(f"could not open device after {attempts} attempts: {last}")
+
+    def _init_device(self, dev):
         for intf in (0, 1):
             try:
                 if dev.is_kernel_driver_active(intf):
@@ -98,6 +121,8 @@ class Camera:
         dev.write(EP_IAP_OUT, MAGIC_INIT, timeout=1000)
         dev.write(EP_OUT, CONNECT_CMD, timeout=1000)
         time.sleep(0.3)
+        self._buf = bytearray()
+        self._cur_fid = None
         # discard the first couple of (partial) frames after connect
         for _ in range(2):
             self.read_jpeg()
@@ -156,6 +181,8 @@ class Camera:
     def release(self):
         if self._dev is None:
             return
+        # Stop the stream (alt 0) and release cleanly. No routine reset() — a reset
+        # forces re-enumeration and makes the *next* open race; keep teardown gentle.
         try:
             self._dev.set_interface_altsetting(interface=1, alternate_setting=0)
         except Exception:
@@ -166,7 +193,7 @@ class Camera:
             except Exception:
                 pass
         try:
-            self._dev.reset()
+            usb.util.dispose_resources(self._dev)
         except Exception:
             pass
         self._dev = None
@@ -179,3 +206,22 @@ class Camera:
 
     def __del__(self):
         self.release()
+
+
+if __name__ == "__main__":
+    # Smoke test: list devices, open, grab one frame, report.
+    import sys
+
+    devs = list_devices()
+    if not devs:
+        sys.exit("no supercamera device found")
+    print(f"found {len(devs)} device(s): " + ", ".join(repr(d) for d in devs))
+    with Camera() as cam:
+        jpeg = cam.read_jpeg()
+        if not jpeg:
+            sys.exit("no frame within timeout")
+        ok = jpeg.startswith(JPEG_SOI) and jpeg.endswith(JPEG_EOI)
+        print(f"serial={cam.serial_number} resolution={cam.resolution}")
+        print(f"frame: {len(jpeg)} bytes  valid_jpeg={ok}")
+        print("upp_camera.py OK — import this module and use the Camera class "
+              "(see grab.py / view.py / vcam.py)")
