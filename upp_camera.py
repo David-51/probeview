@@ -43,8 +43,32 @@ JPEG_EOI = b"\xff\xd9"
 HOMEBREW_DYLIB = "/opt/homebrew/lib/libusb-1.0.dylib"
 
 
+def _bundled_libusb():
+    """When frozen by PyInstaller the recipient has no Homebrew; the libusb dylib is
+    bundled inside the app. Look for it next to the frozen executable / in _MEIPASS."""
+    import os
+    import sys
+    if not getattr(sys, "frozen", False):
+        return None
+    roots = [getattr(sys, "_MEIPASS", None), os.path.dirname(sys.executable),
+             os.path.join(os.path.dirname(sys.executable), "..", "Frameworks")]
+    for root in roots:
+        if not root:
+            continue
+        for name in ("libusb-1.0.0.dylib", "libusb-1.0.dylib"):
+            p = os.path.join(root, name)
+            if os.path.exists(p):
+                return p
+    return None
+
+
 def _backend():
     import usb.backend.libusb1 as libusb1
+    bundled = _bundled_libusb()
+    if bundled:
+        b = libusb1.get_backend(find_library=lambda _: bundled)
+        if b is not None:
+            return b
     b = libusb1.get_backend()
     if b is None:
         b = libusb1.get_backend(find_library=lambda _: HOMEBREW_DYLIB)

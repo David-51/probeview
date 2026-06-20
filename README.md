@@ -84,6 +84,29 @@ Reference decodes (cloned to `reference/`, gitignored): `hbens/geek-szitman-supe
 (C++ PoC — the framing we ported), `MAkcanca/useeplus-linux-driver` (kernel driver),
 `jmz3/EndoscopeCamera`, `supercamera-endoscope` (PyPI source).
 
+## Shareable app
+
+`app.py` is a Tkinter GUI (live view + Save Frame button) packaged into a
+double-clickable `ProbeView.app` with PyInstaller. The libusb dylib is bundled
+inside the app, so recipients need neither Homebrew nor Python. Apple Silicon only.
+
+Build:
+
+```bash
+source .venv/bin/activate
+pyinstaller --windowed --noconfirm --clean --name ProbeView \
+  --add-binary "$(readlink -f /opt/homebrew/lib/libusb-1.0.dylib):." app.py
+# package for sharing (ditto preserves the bundle)
+ditto -c -k --sequesterRsrc --keepParent dist/ProbeView.app ProbeView.zip
+```
+
+`upp_camera._backend()` detects the frozen bundle (`sys.frozen`) and loads the
+bundled `libusb-1.0.0.dylib` from `Contents/Frameworks`. The app is **unsigned** —
+recipients right-click → Open the first time to clear Gatekeeper (see
+`dist/README-OPEN-ME-FIRST.txt`). `ProbeView.spec` is the saved build recipe;
+`build/`, `dist/`, and `*.app` are gitignored. Saved frames land in
+`~/Desktop/ProbeView/`.
+
 ## Step 6 — virtual camera prerequisite
 
 `pyvirtualcam`'s only macOS backend is the OBS Virtual Camera. It is not installed
