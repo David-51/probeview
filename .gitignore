@@ -7,3 +7,4 @@ diag-*.jpg
 build/
 dist/
 *.app
+.DS_Store
