@@ -10,7 +10,7 @@ against the hardware with `diag.py`.
 |-------|-------|
 | VID:PID | `2ce3:3828` (alt variant `0329:2022`) |
 | USB names | Geek szitman / supercamera |
-| Serial (this unit) | `022018050100030` |
+| Serial (this unit) | redacted — your unit reports its own |
 | Resolution | 640×480 (sensor truth; portrait — streams 90° sideways) |
 | Sustained rate | ~15.5 FPS |
 | Stream interface | 1, alt-setting 1 · bulk IN `0x81`, OUT `0x01` |

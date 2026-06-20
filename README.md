@@ -30,7 +30,7 @@ missing one-time dependency (OBS Virtual Camera), not by the device or our code.
 |-------|-------|
 | VID:PID | `2ce3:3828` (not the alternate `0329:2022`) |
 | USB names | Geek szitman / supercamera |
-| Serial | `022018050100030` |
+| Serial | redacted — your unit reports its own |
 | Resolution | 640×480 (sensor truth, ignore "4K" marketing) |
 | Sustained rate | ~16 FPS |
 | Stream interface | 1 (bulk IN `0x81`, OUT `0x01`) |
@@ -139,3 +139,26 @@ in **System Settings → Privacy & Security**, restart if prompted, then re-run
 - `diag.py` — protocol-framing verification tool used to confirm the packet layout.
 - `docs/useeplus-protocol.md` — full protocol spec, framing table, and the package bug.
 - `requirements.txt` — pinned deps.
+
+## Acknowledgements
+
+This work stands on prior reverse-engineering of `com.useeplus.protocol`:
+
+- [**hbens/geek-szitman-supercamera**](https://github.com/hbens/geek-szitman-supercamera)
+  — the CC0 C++ proof-of-concept whose packet framing (`fid`-delimited reassembly)
+  `upp_camera.py` ports.
+- [**MAkcanca/useeplus-linux-driver**](https://github.com/MAkcanca/useeplus-linux-driver)
+  — Linux kernel driver (MIT).
+- [**jmz3/EndoscopeCamera**](https://github.com/jmz3/EndoscopeCamera) — C++/Python viewer.
+- [**Revise-Robotics/supercamera-endoscope**](https://github.com/Revise-Robotics/supercamera-endoscope)
+  — the PyPI `supercamera` package.
+
+## Disclaimer
+
+Unofficial. Not affiliated with or endorsed by the device manufacturer or any
+trademark holder. "Geek szitman", "supercamera", and "USeePlus" are referenced for
+interoperability only. Provided as-is for personal and educational use.
+
+## License
+
+[MIT](LICENSE) © 2026 Everitt Chase.
