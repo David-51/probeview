@@ -138,7 +138,9 @@ class ProbeViewApp:
 
 def main():
     root = tk.Tk()
-    ProbeViewApp(root)
+    app = ProbeViewApp(root)
+    # macOS Cmd-Q / "Quit ProbeView" bypasses WM_DELETE_WINDOW; release the camera too.
+    root.createcommand("::tk::mac::Quit", app.on_close)
     root.mainloop()
 
 
