@@ -2,8 +2,8 @@
 
 **🇫🇷 [Français](#français) · 🇬🇧 [English](#english)**
 
-Utiliser un endoscope USB « Useeplus / Geek szitman » sur un Mac : application avec photos et vidéos, ou image dans le navigateur depuis n'importe quel appareil du réseau local.
-Use a "Useeplus / Geek szitman" USB endoscope on a Mac: an app with photos and video, or the live picture in a browser on any device on your local network.
+Utiliser un endoscope USB « Useeplus / Geek szitman » sur un Mac : application avec photos, vidéos et diffusion sur le réseau local (téléphone, OBS…).
+Use a "Useeplus / Geek szitman" USB endoscope on a Mac: an app with photos, video and local network broadcast (phone, OBS…).
 
 ---
 
@@ -15,8 +15,8 @@ Beaucoup d'endoscopes USB bon marché (souvent vendus avec l'appli **Useeplus**)
 
 ProbeView parle directement à la caméra. Deux façons de l'utiliser :
 
-- l'**application ProbeView** : image en direct, rotation, **photos** et **enregistrement vidéo** ;
-- une **page web**, consultable sur le Mac ou depuis un téléphone, une tablette ou un autre ordinateur du même réseau Wi-Fi.
+- l'**application ProbeView** : image en direct, rotation, **photos**, **enregistrement vidéo** et **diffusion sur le réseau local** (téléphone, autre ordinateur, **OBS**, VLC), avec une aide intégrée ;
+- un **serveur seul**, sans application, pour regarder dans un navigateur.
 
 ### Caméras compatibles
 
@@ -40,7 +40,7 @@ Il faut un **Mac**, une **connexion Internet** et environ **10 minutes** la prem
 
 Suivez les messages. Si Homebrew n'est pas encore installé, le script propose de l'installer (répondez `o`) et demande le **mot de passe de votre session Mac** (rien ne s'affiche pendant la saisie, c'est normal).
 
-À la fin, **ProbeView s'ouvre** et se trouve dans **Applications**. Vous pouvez supprimer le fichier ZIP ; gardez le dossier `probeview-main` si vous voulez utiliser la page web.
+À la fin, **ProbeView s'ouvre** et se trouve dans **Applications**. Vous pouvez supprimer le fichier ZIP ; gardez le dossier `probeview-main` si vous voulez utiliser le serveur seul.
 
 <details>
 <summary>Avec git (si vous connaissez)</summary>
@@ -55,36 +55,43 @@ cd probeview
 ### Utiliser l'application
 
 1. Branchez l'endoscope. Si macOS demande d'**autoriser l'accessoire**, acceptez.
-2. Ouvrez **ProbeView** (Launchpad, Spotlight, ou glissez-la dans le Dock depuis Applications).
+2. Ouvrez **ProbeView** (Launchpad, Spotlight, ou glissez-la dans le Dock depuis Applications). Si la caméra n'est pas encore branchée, l'appli l'attend et se connecte dès qu'elle est détectée.
 
 | Bouton | Raccourci | Effet |
 |---|---|---|
 | **↻ Pivoter** | `R` | tourne l'image d'un quart de tour (réglage mémorisé) |
 | **Photo** | `Espace` | enregistre l'image affichée en JPEG |
 | **● Enregistrer** / **■ Arrêter** | `V` | enregistre une vidéo MP4 (lisible par QuickTime) |
+| **Diffuser** / **■ Stop diffusion** | `D` | envoie l'image sur le réseau local (voir ci-dessous) |
 | **Dossier** | | ouvre le dossier des photos et vidéos |
+| **? Aide** | `H` | mode d'emploi complet, dans l'appli |
 
 Photos et vidéos vont dans le dossier **ProbeView sur le Bureau** (`~/Desktop/ProbeView`), avec la rotation choisie. La rotation est bloquée pendant un enregistrement. À la première capture, macOS peut demander si ProbeView peut accéder au Bureau : acceptez.
 
-### Voir l'image depuis un autre appareil (page web)
+### Voir l'image sur un autre appareil ou dans OBS
 
-1. Branchez l'endoscope et **fermez l'application ProbeView** (la caméra ne peut servir qu'à un seul programme à la fois).
-2. Dans le Terminal :
-   ```bash
-   bash ~/Downloads/probeview-main/start-server.command
-   ```
-   (ou `bash ` + glisser le fichier `start-server.command` + `Entrée`)
-3. Le navigateur s'ouvre sur l'image. Le Terminal affiche aussi une adresse du type :
-   ```
-   LAN      : http://192.168.1.42:8080
-   ```
-   Tapez-la dans le navigateur d'un téléphone ou d'un autre ordinateur **connecté au même réseau**.
-4. Pour arrêter : `Ctrl-C` dans le Terminal, ou fermez la fenêtre.
+Cliquez sur **Diffuser** dans l'application. Elle continue de fonctionner normalement (photos, vidéos) et publie en plus l'image sur votre réseau local. En bas de la fenêtre s'affichent :
 
-La page propose **Pivoter**, **Plein écran** et **Capture**, et retrouve la caméra si on la débranche et la rebranche. La première fois, macOS peut demander si Python peut **accepter des connexions entrantes** : répondez *Autoriser* pour regarder depuis un autre appareil.
+- l'**adresse de la page web** (par exemple `http://192.168.1.42:8080`) : cliquez dessus, ou tapez-la dans le navigateur d'un téléphone ou d'un ordinateur **connecté au même réseau** ;
+- le bouton **Copier l'adresse OBS**, qui copie l'adresse du flux vidéo (`…/stream.mjpg`).
+
+> **La première fois**, macOS demande « Autoriser ProbeView à rechercher des appareils sur les réseaux locaux ? » : cliquez sur **Autoriser**, sinon les autres appareils ne recevront rien. En cas de refus : Réglages Système → Confidentialité et sécurité → **Réseau local** → activez ProbeView.
+
+**Dans OBS Studio** : Sources → **+** → **Source média** → décochez *Fichier local* → dans *Entrée*, collez l'adresse copiée → si l'image n'apparaît pas, mettez `mjpeg` dans *Format d'entrée*.
+**Dans VLC** : *Fichier → Ouvrir un flux réseau* → collez l'adresse.
+
+Le port est `8080` ; s'il est déjà pris, ProbeView utilise le suivant (`8081`…) : l'adresse affichée est toujours la bonne. La page web a ses propres boutons **Pivoter**, **Plein écran** et **Capture**.
 
 <details>
-<summary>Options et adresses utiles</summary>
+<summary>Sans l'application : serveur seul (start-server.command)</summary>
+
+Pratique sur un Mac sans écran ou pour un usage permanent. Fermez d'abord l'application ProbeView (la caméra ne peut servir qu'à un seul programme à la fois), puis dans le Terminal :
+
+```bash
+bash ~/Downloads/probeview-main/start-server.command
+```
+
+Le navigateur s'ouvre et le Terminal affiche l'adresse réseau. `Ctrl-C` pour arrêter. La page retrouve la caméra si on la débranche et la rebranche.
 
 | Commande | Effet |
 |---|---|
@@ -92,9 +99,7 @@ La page propose **Pivoter**, **Plein écran** et **Capture**, et retrouve la cam
 | `NO_BROWSER=1 bash start-server.command` | ne pas ouvrir le navigateur |
 | `bash start-server.command --host 127.0.0.1` | visible uniquement sur ce Mac |
 
-- `http://…:8080/` — la page de visionnage
-- `http://…:8080/stream.mjpg` — le flux vidéo seul (s'ouvre aussi dans **VLC** : *Fichier → Ouvrir un flux réseau*)
-- `http://…:8080/snapshot.jpg` — la dernière image
+Adresses : `/` page de visionnage · `/stream.mjpg` flux vidéo · `/snapshot.jpg` dernière image.
 </details>
 
 ### Mettre à jour / désinstaller
@@ -106,7 +111,7 @@ La page propose **Pivoter**, **Plein écran** et **Capture**, et retrouve la cam
 
 - **Résolution réelle : 640×480.** Les pages de vente annoncent souvent « HD 1920×1440 / 2 Mpx ». Les applis officielles enregistrent bien des fichiers de cette taille, mais c'est un simple agrandissement : la caméra n'envoie que du 640×480 et les captures de l'appli ne contiennent pas plus de détails. ProbeView offre donc la même qualité que l'appli officielle.
 - **Double objectif** : d'après le fabricant, un appui long sur le bouton de la caméra change d'objectif. Ça se passe dans la caméra, rien à faire côté ProbeView.
-- **Sécurité** : la page web n'a pas de mot de passe. Toute personne sur votre réseau local qui connaît l'adresse peut voir l'image. Sur un réseau public, utilisez `--host 127.0.0.1`.
+- **Sécurité** : la diffusion n'a pas de mot de passe. Toute personne sur votre réseau local qui connaît l'adresse peut voir l'image. Sur un réseau public (hôtel, gare…), n'activez pas **Diffuser** (en serveur seul : `--host 127.0.0.1`).
 
 ### Dépannage
 
@@ -115,14 +120,15 @@ La page propose **Pivoter**, **Plein écran** et **Capture**, et retrouve la cam
 | Double-clic sur un fichier `.command` refusé (« impossible de vérifier le développeur ») | Normal pour un fichier téléchargé : lancez-le depuis le Terminal avec `bash ` devant, comme indiqué plus haut. |
 | `No such file or directory` à l'installation | Le dossier n'est pas dans Téléchargements ou porte un autre nom : utilisez l'astuce « `bash ` + glisser le fichier ». |
 | L'installation échoue | Relancez-la (elle reprend là où elle en était) ; vérifiez la connexion Internet. |
-| Appli : « Aucun endoscope trouvé » | Vérifiez le câble (données, pas charge seule), branchez la caméra **avant** d'ouvrir l'appli, acceptez « autoriser l'accessoire ». |
-| Appli : « Impossible de démarrer la caméra … Access denied » | La caméra est déjà utilisée, souvent par la page web : arrêtez-la (`Ctrl-C` dans le Terminal), puis relancez l'appli. |
+| Appli : « Aucun endoscope détecté » | Vérifiez le câble (données, pas charge seule) et acceptez « autoriser l'accessoire » : l'appli se connecte dès que la caméra est détectée. |
+| Appli : « Caméra indisponible (déjà utilisée par un autre programme) » | Arrêtez `start-server.command` (`Ctrl-C` dans le Terminal) : l'appli se connecte ensuite toute seule. |
+| Diffusion : rien sur le téléphone ou dans OBS | Même réseau ? Autorisation **Réseau local** accordée (Réglages Système → Confidentialité et sécurité → Réseau local) ? Adresse bien celle affichée en bas de l'appli ? |
 | La caméra ne répond plus / image figée | Débranchez et rebranchez l'endoscope. |
 | Je ne trouve pas mes photos / vidéos | Bouton **Dossier**, ou dossier *ProbeView* sur le Bureau. |
 | L'image est de travers | Bouton **Pivoter** ou touche `R`. |
-| Page web : « Caméra non connectée » | Câble, rebranchement, et application ProbeView fermée. |
-| Page web : « le port 8080 est déjà utilisé » | `PORT=9000 bash start-server.command` |
-| Page web inaccessible depuis le téléphone | Même réseau Wi-Fi ? Connexions entrantes autorisées pour Python (Réglages Système → Réseau → Coupe-feu) ? |
+| Serveur seul : « Caméra non connectée » | Câble, rebranchement, et application ProbeView fermée. |
+| Serveur seul : « le port 8080 est déjà utilisé » | `PORT=9000 bash start-server.command` |
+| Serveur seul : page inaccessible depuis le téléphone | Même réseau Wi-Fi ? Connexions entrantes autorisées pour Python (Réglages Système → Réseau → Coupe-feu) ? |
 
 ---
 
@@ -134,8 +140,8 @@ Many cheap USB endoscopes (often sold with the **Useeplus** app) officially work
 
 ProbeView talks to the camera directly. Two ways to use it:
 
-- the **ProbeView app**: live picture, rotation, **photos** and **video recording**;
-- a **web page**, on the Mac itself or from a phone, tablet or another computer on the same Wi-Fi.
+- the **ProbeView app**: live picture, rotation, **photos**, **video recording** and **local network broadcast** (phone, another computer, **OBS**, VLC), with built-in help;
+- a **server only**, without the app, to watch in a browser.
 
 Both interfaces are in French (buttons are translated below).
 
@@ -161,7 +167,7 @@ You need a **Mac**, an **Internet connection** and about **10 minutes** the firs
 
 Follow the messages. If Homebrew isn't installed yet, the script offers to install it (answer `y`) and asks for your **Mac login password** (nothing shows while typing; that's normal).
 
-When it's done, **ProbeView opens** and is in **Applications**. You can delete the ZIP; keep the `probeview-main` folder if you want to use the web page.
+When it's done, **ProbeView opens** and is in **Applications**. You can delete the ZIP; keep the `probeview-main` folder if you want to use the server-only mode.
 
 <details>
 <summary>With git (if you know it)</summary>
@@ -176,36 +182,43 @@ cd probeview
 ### Using the app
 
 1. Plug in the endoscope. If macOS asks to **allow the accessory**, accept.
-2. Open **ProbeView** (Launchpad, Spotlight, or drag it to the Dock from Applications).
+2. Open **ProbeView** (Launchpad, Spotlight, or drag it to the Dock from Applications). If the camera isn't plugged in yet, the app waits and connects as soon as it's detected.
 
 | Button | Key | Action |
 |---|---|---|
 | **↻ Pivoter** (rotate) | `R` | rotates the picture a quarter turn (remembered) |
 | **Photo** | `Space` | saves the displayed picture as JPEG |
 | **● Enregistrer** / **■ Arrêter** (record / stop) | `V` | records an MP4 video (plays in QuickTime) |
+| **Diffuser** / **■ Stop diffusion** (broadcast) | `D` | sends the picture over the local network (see below) |
 | **Dossier** (folder) | | opens the photos and videos folder |
+| **? Aide** (help) | `H` | full user guide, inside the app (in French) |
 
 Photos and videos go to the **ProbeView folder on your Desktop** (`~/Desktop/ProbeView`), with the chosen rotation. Rotation is locked while recording. On the first capture, macOS may ask whether ProbeView can access your Desktop: allow it.
 
-### Watching from another device (web page)
+### Watching on another device or in OBS
 
-1. Plug in the endoscope and **quit the ProbeView app** (only one program can use the camera at a time).
-2. In Terminal:
-   ```bash
-   bash ~/Downloads/probeview-main/start-server.command
-   ```
-   (or `bash ` + drag the `start-server.command` file + `Return`)
-3. Your browser opens on the live picture. Terminal also prints an address like:
-   ```
-   LAN      : http://192.168.1.42:8080
-   ```
-   Open it in the browser of a phone or another computer **on the same network**.
-4. To stop: `Ctrl-C` in Terminal, or close the window.
+Click **Diffuser** (broadcast) in the app. It keeps working normally (photos, videos) and also publishes the picture on your local network. The bottom of the window shows:
 
-The page has **Pivoter** (rotate), **Plein écran** (fullscreen) and **Capture** (snapshot) buttons, and picks the camera up again after unplugging. The first time, macOS may ask whether Python may **accept incoming connections**: choose *Allow* to watch from another device.
+- the **web page address** (e.g. `http://192.168.1.42:8080`): click it, or type it in the browser of a phone or computer **on the same network**;
+- the **Copier l'adresse OBS** (copy OBS address) button, which copies the video stream address (`…/stream.mjpg`).
+
+> **The first time**, macOS asks "Allow ProbeView to find devices on local networks?": click **Allow**, otherwise other devices get nothing. If you declined: System Settings → Privacy & Security → **Local Network** → turn ProbeView on.
+
+**In OBS Studio**: Sources → **+** → **Media Source** → uncheck *Local File* → paste the copied address into *Input* → if no picture shows, set *Input Format* to `mjpeg`.
+**In VLC**: *File → Open Network* → paste the address.
+
+The port is `8080`; if it's taken, ProbeView uses the next one (`8081`…): the address shown is always the right one. The web page has its own **Pivoter** (rotate), **Plein écran** (fullscreen) and **Capture** (snapshot) buttons.
 
 <details>
-<summary>Options and useful URLs</summary>
+<summary>Without the app: server only (start-server.command)</summary>
+
+Handy on a headless Mac or for permanent use. Quit the ProbeView app first (only one program can use the camera at a time), then in Terminal:
+
+```bash
+bash ~/Downloads/probeview-main/start-server.command
+```
+
+The browser opens and Terminal prints the network address. `Ctrl-C` to stop. The page picks the camera up again after unplugging.
 
 | Command | Effect |
 |---|---|
@@ -213,9 +226,7 @@ The page has **Pivoter** (rotate), **Plein écran** (fullscreen) and **Capture**
 | `NO_BROWSER=1 bash start-server.command` | don't open the browser |
 | `bash start-server.command --host 127.0.0.1` | only reachable from this Mac |
 
-- `http://…:8080/` — the viewer page
-- `http://…:8080/stream.mjpg` — the raw video stream (also opens in **VLC**: *File → Open Network*)
-- `http://…:8080/snapshot.jpg` — the latest frame
+URLs: `/` viewer page · `/stream.mjpg` video stream · `/snapshot.jpg` latest frame.
 </details>
 
 ### Update / uninstall
@@ -227,7 +238,7 @@ The page has **Pivoter** (rotate), **Plein écran** (fullscreen) and **Capture**
 
 - **Real resolution: 640×480.** Listings often claim "HD 1920×1440 / 2 MP". The official apps do save files that size, but they are just upscaled: the camera only sends 640×480 and the app's captures hold no extra detail. ProbeView gives the same quality as the official app.
 - **Dual lens**: according to the manufacturer, a long press on the camera button switches lenses. It happens inside the camera; nothing to do in ProbeView.
-- **Security**: the web page has no password. Anyone on your local network who knows the address can see the picture. On a public network, use `--host 127.0.0.1`.
+- **Security**: broadcasting has no password. Anyone on your local network who knows the address can see the picture. On a public network (hotel, station…), don't turn on **Diffuser** (server only: `--host 127.0.0.1`).
 
 ### Troubleshooting
 
@@ -236,14 +247,15 @@ The page has **Pivoter** (rotate), **Plein écran** (fullscreen) and **Capture**
 | Double-clicking a `.command` file is refused ("unidentified developer") | Normal for a downloaded file: run it from Terminal with `bash ` in front, as shown above. |
 | `No such file or directory` when installing | The folder isn't in Downloads or has another name: use the "`bash ` + drag the file" trick. |
 | Install fails | Run it again (it picks up where it stopped); check your Internet connection. |
-| App: "Aucun endoscope trouvé" (no endoscope found) | Check the cable (data, not charge-only), plug the camera in **before** opening the app, accept "allow accessory". |
-| App: "Impossible de démarrer la caméra … Access denied" (can't start camera) | The camera is already in use, usually by the web page: stop it (`Ctrl-C` in Terminal), then reopen the app. |
+| App: "Aucun endoscope détecté" (no endoscope detected) | Check the cable (data, not charge-only) and accept "allow accessory": the app connects as soon as the camera is detected. |
+| App: "Caméra indisponible (déjà utilisée…)" (camera in use) | Stop `start-server.command` (`Ctrl-C` in Terminal): the app then connects by itself. |
+| Broadcast: nothing on the phone or in OBS | Same network? **Local Network** permission granted (System Settings → Privacy & Security → Local Network)? Using the address shown at the bottom of the app? |
 | Camera stops responding / frozen picture | Unplug and replug the endoscope. |
 | Can't find photos / videos | **Dossier** (folder) button, or the *ProbeView* folder on your Desktop. |
 | Picture is sideways | **Pivoter** (rotate) button or `R` key. |
-| Web page: "Caméra non connectée" (camera not connected) | Cable, replug, and make sure the ProbeView app is closed. |
-| Web page: "port 8080 déjà utilisé" (port in use) | `PORT=9000 bash start-server.command` |
-| Web page won't open from the phone | Same Wi-Fi? Incoming connections allowed for Python (System Settings → Network → Firewall)? |
+| Server only: "Caméra non connectée" (camera not connected) | Cable, replug, and make sure the ProbeView app is closed. |
+| Server only: "port 8080 déjà utilisé" (port in use) | `PORT=9000 bash start-server.command` |
+| Server only: page won't open from the phone | Same Wi-Fi? Incoming connections allowed for Python (System Settings → Network → Firewall)? |
 
 ---
 

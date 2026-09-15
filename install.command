@@ -82,9 +82,18 @@ fi
 # 4. Build ----------------------------------------------------------------------
 step "4/5 Fabrication de l'application / Building the app (1-2 min)"
 .venv/bin/pyinstaller --windowed --noconfirm --clean --log-level WARN --name "$APP_NAME" \
+  --osx-bundle-identifier io.github.david-51.probeview \
   --add-binary "$(readlink -f "$LIBUSB" 2>/dev/null || echo "$LIBUSB"):." app.py \
   || fail "PyInstaller"
 [ -d "dist/$APP_NAME.app" ] || fail "dist/$APP_NAME.app absent"
+# Text shown by macOS when "Diffuser" asks for the Local Network permission.
+PLIST="dist/$APP_NAME.app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" "$PLIST" 2>/dev/null
+/usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string \
+Nécessaire pour le bouton « Diffuser » : envoyer l’image de l’endoscope aux appareils de votre réseau local (téléphone, OBS…). \
+Needed by the Diffuser (broadcast) button to send the endoscope picture to devices on your local network." "$PLIST" \
+  || fail "Info.plist"
+codesign --force --deep --sign - "dist/$APP_NAME.app" 2>/dev/null || fail "codesign"
 
 # 5. Install ----------------------------------------------------------------------
 step "5/5 Copie dans Applications / Copying to Applications"

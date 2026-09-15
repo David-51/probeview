@@ -16,7 +16,6 @@ Then open http://<this Mac's LAN IP>:8080 (the URLs are printed at startup).
 """
 import argparse
 import json
-import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -90,11 +89,11 @@ PAGE = """<!doctype html>
 """
 
 
-class Capture:
-    """Owns the camera on a background thread and publishes the latest JPEG."""
+class FrameHub:
+    """Latest-JPEG mailbox read by the HTTP handler. Fed by Capture below, or by the
+    desktop app (app.py) when it broadcasts its own frames."""
 
-    def __init__(self, index=0):
-        self.index = index
+    def __init__(self):
         self.cond = threading.Condition()
         self.jpeg = None
         self.seq = 0
@@ -103,6 +102,28 @@ class Capture:
         self.resolution = (0, 0)
         self.fps = 0.0
         self.running = True
+
+    def publish(self, jpeg):
+        with self.cond:
+            self.jpeg = jpeg
+            self.seq += 1
+            self.cond.notify_all()
+
+    def wait_frame(self, last_seq, timeout=2.0):
+        """Block until a frame newer than last_seq exists; return (seq, jpeg) or (last_seq, None)."""
+        with self.cond:
+            self.cond.wait_for(lambda: self.seq != last_seq, timeout=timeout)
+            if self.seq == last_seq:
+                return last_seq, None
+            return self.seq, self.jpeg
+
+
+class Capture(FrameHub):
+    """Owns the camera on a background thread and publishes the latest JPEG."""
+
+    def __init__(self, index=0):
+        super().__init__()
+        self.index = index
         threading.Thread(target=self._run, daemon=True).start()
 
     def _run(self):
@@ -137,24 +158,13 @@ class Capture:
             dt, t_last = now - t_last, now
             if dt > 0:
                 self.fps = 0.9 * self.fps + 0.1 * (1.0 / dt) if self.fps else 1.0 / dt
-            with self.cond:
-                self.jpeg = jpeg
-                self.seq += 1
-                self.cond.notify_all()
+            self.publish(jpeg)
 
     def _set_disconnected(self):
         if self.connected:
             print("camera disconnected, waiting…", flush=True)
         self.connected = False
         self.fps = 0.0
-
-    def wait_frame(self, last_seq, timeout=2.0):
-        """Block until a frame newer than last_seq exists; return (seq, jpeg) or (last_seq, None)."""
-        with self.cond:
-            self.cond.wait_for(lambda: self.seq != last_seq, timeout=timeout)
-            if self.seq == last_seq:
-                return last_seq, None
-            return self.seq, self.jpeg
 
 
 def make_handler(capture):
@@ -216,20 +226,43 @@ def make_handler(capture):
 
 
 def lan_addresses():
-    """Best-effort list of this machine's IPv4 LAN addresses."""
-    addrs = set()
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(("10.255.255.255", 1))   # UDP connect sends no packet
-            addrs.add(s.getsockname()[0])
-    except OSError:
-        pass
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            addrs.add(info[4][0])
-    except OSError:
-        pass
-    return sorted(a for a in addrs if not a.startswith("127."))
+    """This Mac's IPv4 LAN addresses, most useful first: the default-route interface,
+    then the others; link-local 169.254.x (USB/Thunderbolt links, unreachable from a
+    phone) last. Read from the system configuration, without opening any socket (a
+    probe connection would trigger macOS's Local Network permission prompt)."""
+    import re
+    import subprocess
+
+    def run(*cmd):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    addrs = []
+    iface = re.search(r"interface:\s*(\S+)", run("route", "-n", "get", "default"))
+    if iface:
+        addrs += run("ipconfig", "getifaddr", iface.group(1)).split()
+    addrs += re.findall(r"inet (\d+\.\d+\.\d+\.\d+)", run("ifconfig"))
+    unique = [a for i, a in enumerate(addrs)
+              if a not in addrs[:i] and not a.startswith(("127.", "0."))]
+    return sorted(unique, key=lambda a: a.startswith("169.254."))   # stable sort
+
+
+def serve_in_background(hub, host="0.0.0.0", port=8080, tries=10):
+    """Start an HTTP server for hub on the first free port from `port`, in a daemon
+    thread. Returns (server, port). Stop with hub.running = False, server.shutdown()."""
+    last = None
+    for p in range(port, port + tries):
+        try:
+            server = ThreadingHTTPServer((host, p), make_handler(hub))
+        except OSError as e:
+            last = e
+            continue
+        server.daemon_threads = True
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return server, p
+    raise OSError(f"no free port in {port}-{port + tries - 1}: {last}")
 
 
 def main():
