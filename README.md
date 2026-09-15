@@ -133,7 +133,10 @@ Lancez-les après avoir activé l'environnement : `source .venv/bin/activate`.
 | « libusb introuvable » | `brew install libusb` |
 | « le port 8080 est déjà utilisé » | `PORT=9000 ./start-server.command` |
 | Impossible d'ouvrir la page depuis le téléphone | Même réseau Wi-Fi ? Connexions entrantes autorisées pour Python (Réglages Système → Réseau → Coupe-feu) ? |
-| L'image est de travers | Bouton **Pivoter** (le réglage est mémorisé). |
+| L'image est de travers | Bouton **Pivoter** ou touche `R` (le réglage est mémorisé). |
+| Appli : « Impossible de démarrer la caméra … Access denied » | La caméra est déjà utilisée, souvent par la page web : arrêtez `start-server.command` (Ctrl-C), puis relancez l'appli. |
+| Appli : « Aucun endoscope trouvé » | Branchez la caméra avant d'ouvrir l'appli, puis relancez-la. |
+| Appli : je ne trouve pas mes photos / vidéos | Bouton **Dossier**, ou `~/Desktop/ProbeView`. |
 
 ---
 
@@ -265,7 +268,10 @@ Run them after activating the environment: `source .venv/bin/activate`.
 | "libusb introuvable" (libusb not found) | `brew install libusb` |
 | "port 8080 déjà utilisé" (port in use) | `PORT=9000 ./start-server.command` |
 | Page won't open from the phone | Same Wi-Fi? Incoming connections allowed for Python (System Settings → Network → Firewall)? |
-| Picture is sideways | **Pivoter** (rotate) button; the setting is remembered. |
+| Picture is sideways | **Pivoter** (rotate) button or `R` key; the setting is remembered. |
+| App: "Impossible de démarrer la caméra … Access denied" (can't start camera) | The camera is already in use, usually by the web page: stop `start-server.command` (Ctrl-C), then reopen the app. |
+| App: "Aucun endoscope trouvé" (no endoscope found) | Plug the camera in before opening the app, then reopen it. |
+| App: can't find photos / videos | **Dossier** (folder) button, or `~/Desktop/ProbeView`. |
 
 ---
 
