@@ -55,14 +55,20 @@ class ProbeViewApp:
         self.root.title("ProbeView")
         self.root.configure(bg=BG)
         self.root.minsize(560, 420)
+        self.root.geometry("900x720")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         # Button bar pinned to the bottom; video fills the rest and scales with it.
         bar = tk.Frame(root, bg=BG)
         bar.pack(side="bottom", fill="x", padx=10, pady=(0, 10))
 
-        self.video = tk.Label(root, bg="#000000")
-        self.video.pack(side="top", fill="both", expand=True, padx=10, pady=(10, 6))
+        # The video area's size comes from the window, never from the image: a Label
+        # that sizes itself to its image would grow a few pixels per refresh.
+        self.view = tk.Frame(root, bg="#000000")
+        self.view.pack(side="top", fill="both", expand=True, padx=10, pady=(10, 6))
+        self.view.pack_propagate(False)
+        self.video = tk.Label(self.view, bg="#000000", bd=0, highlightthickness=0)
+        self.video.place(relx=0.5, rely=0.5, anchor="center")
 
         self.rot_btn = tk.Button(bar, text="↻ Pivoter", command=self.rotate, width=9)
         self.photo_btn = tk.Button(bar, text="Photo", command=self.take_photo, width=7)
@@ -136,7 +142,7 @@ class ProbeViewApp:
         frame = self.frame
         if frame is not None:
             # Scale to the current video-area size, preserving the aspect ratio.
-            vw, vh = self.video.winfo_width(), self.video.winfo_height()
+            vw, vh = self.view.winfo_width(), self.view.winfo_height()
             h, w = frame.shape[:2]
             if vw > 10 and vh > 10:
                 scale = min(vw / w, vh / h)
