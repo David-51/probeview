@@ -7,8 +7,8 @@ This device coalesces many ~1 KB protocol packets into each bulk read, each with
 OWN 12-byte header, so interior headers stay embedded in the JPEG -> truncated /
 corrupt frames (the "premature end of data segment" / half-gray image).
 
-This module ports the protocol from the hbens C++ PoC (reference/geek-szitman-
-supercamera/supercamera_poc.cpp), verified against the device:
+This module ports the protocol from the hbens C++ PoC (github.com/hbens/geek-szitman-
+supercamera), verified against the device:
 
   packet = [5-byte USB header][7-byte cam header][JPEG payload chunk]
     USB header : magic uint16 LE = 0xBBAA, cid uint8, length uint16 LE
@@ -18,10 +18,19 @@ supercamera/supercamera_poc.cpp), verified against the device:
   splits each frame's head/tail across both). Reassemble by fid: a frame is complete
   when fid changes. JPEG payload begins at offset 12.
 
+Second firmware personality ("i4season YUV", e.g. su4p-002 fw 5.0.13, bcdDevice 1.11):
+same VID:PID, but the com.useeplus.protocol interface carries bulk IN 0x82 / OUT 0x02
+and ignores the BB AA commands. It is driven with class control requests on endpoint 0
+(bmRequestType 0x20/0xA0, wValue 5): request 0 = 480-byte info block (width/height at
+offsets 46/48), request 1 = start, request 2 = stop. The stream is raw YUYV 4:2:2:
+  [511-byte header, magic DD CC 01 00, flags at byte 7][width*height*2 bytes]
+The header is a short packet, so one large bulk read returns exactly one frame.
+The personality is picked from the descriptors: protocol interface IN 0x81 = JPEG.
+
 API mirrors the supercamera package so the other scripts are drop-in:
     with Camera() as cam:
         ret, frame = cam.read()    # (bool, numpy BGR ndarray)
-        jpeg = cam.read_jpeg()     # raw JPEG bytes
+        jpeg = cam.read_jpeg()     # JPEG bytes (encoded on the fly for YUV units)
 """
 import time
 
@@ -41,6 +50,17 @@ VALID_CIDS = (7, 11)
 JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
 HOMEBREW_DYLIB = "/opt/homebrew/lib/libusb-1.0.dylib"
+
+# i4season YUV personality
+YUV_INTERFACE = 1
+YUV_EP_IN = 0x82
+YUV_REQ_TYPE_IN, YUV_REQ_TYPE_OUT = 0xA0, 0x20
+YUV_REQ_INFO, YUV_REQ_START, YUV_REQ_STOP = 0, 1, 2
+YUV_WVALUE = 5
+YUV_MAGIC = b"\xdd\xcc\x01\x00"
+YUV_HDR = 511
+YUV_READ_SIZE = 1 << 20   # > one frame: the header's short packet ends each transfer
+JPEG_QUALITY = 85
 
 
 def _bundled_libusb():
@@ -75,6 +95,15 @@ def _backend():
     return b
 
 
+def personality(dev):
+    """'jpeg' for the documented useeplus layout (video IN 0x81), 'yuv' otherwise."""
+    for intf in dev.get_active_configuration():
+        if intf.bInterfaceClass == 0xFF and intf.bInterfaceProtocol == 1:
+            if any(ep.bEndpointAddress == EP_IN for ep in intf):
+                return "jpeg"
+    return "yuv"
+
+
 def list_devices():
     found = []
     for vid, pid in KNOWN_DEVICES:
@@ -91,6 +120,9 @@ class Camera:
         self._buf = bytearray()
         self._cur_fid = None
         self._frames_read = 0
+        self.mode = None
+        self._size = (640, 480)
+        self.flags = 0            # YUV header byte 7 of the last frame (bit 1 = button)
         self._open()
 
     def _find(self):
@@ -125,6 +157,31 @@ class Camera:
         raise RuntimeError(f"could not open device after {attempts} attempts: {last}")
 
     def _init_device(self, dev):
+        self.mode = personality(dev)
+        if self.mode == "yuv":
+            self._init_yuv(dev)
+        else:
+            self._init_jpeg(dev)
+
+    def _init_yuv(self, dev):
+        # Only interface 1: on macOS accessoryd owns the iAP interface (0), and
+        # writing to it makes the device drop off the bus.
+        usb.util.claim_interface(dev, YUV_INTERFACE)
+        dev.set_interface_altsetting(interface=YUV_INTERFACE, alternate_setting=1)
+        info = bytes(dev.ctrl_transfer(YUV_REQ_TYPE_IN, YUV_REQ_INFO, YUV_WVALUE, 0,
+                                       512, timeout=1000))
+        if len(info) >= 50:
+            w = info[46] | (info[47] << 8)
+            h = info[48] | (info[49] << 8)
+            if 0 < w <= 4096 and 0 < h <= 4096:
+                self._size = (w, h)
+        dev.ctrl_transfer(YUV_REQ_TYPE_OUT, YUV_REQ_START, YUV_WVALUE, 0, bytes(64),
+                          timeout=1000)
+        self._buf = bytearray()
+        if self._read_yuyv() is None:
+            raise usb.core.USBTimeoutError("no video after start", -7, 60)
+
+    def _init_jpeg(self, dev):
         for intf in (0, 1):
             try:
                 if dev.is_kernel_driver_active(intf):
@@ -151,8 +208,59 @@ class Camera:
         for _ in range(2):
             self.read_jpeg()
 
+    def _read_yuyv(self):
+        """Return one raw YUYV frame (bytes, width*height*2), or None on timeout."""
+        frame_len = self._size[0] * self._size[1] * 2
+        deadline = time.monotonic() + self._timeout
+        while True:
+            frame = self._carve_yuyv(frame_len)
+            if frame is not None:
+                self._frames_read += 1
+                return frame
+            if time.monotonic() >= deadline:
+                return None
+            try:
+                self._buf += self._dev.read(YUV_EP_IN, YUV_READ_SIZE, timeout=1000)
+            except usb.core.USBTimeoutError:
+                continue
+
+    def _carve_yuyv(self, frame_len):
+        """Pop the first complete header-delimited frame from the buffer, if any."""
+        buf = self._buf
+        while True:
+            start = buf.find(YUV_MAGIC)
+            if start < 0:
+                del buf[:-(len(YUV_MAGIC) - 1)]
+                return None
+            end = buf.find(YUV_MAGIC, start + YUV_HDR)
+            if end < 0:
+                del buf[:start]
+                return None
+            payload_len = end - start - YUV_HDR
+            if payload_len == frame_len:
+                self.flags = buf[start + 7]
+                frame = bytes(buf[start + YUV_HDR:end])
+                del buf[:end]
+                return frame
+            del buf[:end]   # truncated frame, or magic inside pixel data: resync
+
+    def _yuyv_to_bgr(self, yuyv):
+        import cv2
+        import numpy as np
+        w, h = self._size
+        return cv2.cvtColor(np.frombuffer(yuyv, np.uint8).reshape(h, w, 2),
+                            cv2.COLOR_YUV2BGR_YUYV)
+
     def read_jpeg(self):
         """Return one complete JPEG frame as bytes, or None on timeout."""
+        if self.mode == "yuv":
+            import cv2
+            yuyv = self._read_yuyv()
+            if yuyv is None:
+                return None
+            ok, jpeg = cv2.imencode(".jpg", self._yuyv_to_bgr(yuyv),
+                                    [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+            return jpeg.tobytes() if ok else None
         deadline = time.monotonic() + self._timeout
         while time.monotonic() < deadline:
             try:
@@ -179,6 +287,9 @@ class Camera:
 
     def read(self):
         """Return (success, numpy BGR ndarray)."""
+        if self.mode == "yuv":
+            yuyv = self._read_yuyv()
+            return (False, None) if yuyv is None else (True, self._yuyv_to_bgr(yuyv))
         import cv2
         import numpy as np
         jpeg = self.read_jpeg()
@@ -189,7 +300,7 @@ class Camera:
 
     @property
     def resolution(self):
-        return (640, 480)
+        return self._size
 
     @property
     def frames_read(self):
@@ -207,6 +318,12 @@ class Camera:
             return
         # Stop the stream (alt 0) and release cleanly. No routine reset() — a reset
         # forces re-enumeration and makes the *next* open race; keep teardown gentle.
+        if self.mode == "yuv":
+            try:
+                self._dev.ctrl_transfer(YUV_REQ_TYPE_OUT, YUV_REQ_STOP, YUV_WVALUE, 0,
+                                        None, timeout=1000)
+            except Exception:
+                pass
         try:
             self._dev.set_interface_altsetting(interface=1, alternate_setting=0)
         except Exception:
@@ -245,7 +362,6 @@ if __name__ == "__main__":
         if not jpeg:
             sys.exit("no frame within timeout")
         ok = jpeg.startswith(JPEG_SOI) and jpeg.endswith(JPEG_EOI)
-        print(f"serial={cam.serial_number} resolution={cam.resolution}")
+        print(f"serial={cam.serial_number} mode={cam.mode} resolution={cam.resolution}")
         print(f"frame: {len(jpeg)} bytes  valid_jpeg={ok}")
-        print("upp_camera.py OK — import this module and use the Camera class "
-              "(see grab.py / view.py / vcam.py)")
+        print("upp_camera.py OK")
