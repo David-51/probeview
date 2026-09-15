@@ -13,11 +13,10 @@ View a "Useeplus / Geek szitman" USB endoscope on a Mac, in your browser, from a
 
 Beaucoup d'endoscopes USB bon marché (souvent vendus avec l'appli **Useeplus**) ne fonctionnent officiellement qu'avec un téléphone Android ou un iPhone. Branchés sur un Mac, rien ne se passe : ce ne sont pas des webcams standard et aucune appli n'existe pour macOS.
 
-ProbeView parle directement à la caméra et affiche son image :
+ProbeView parle directement à la caméra. Deux façons de l'utiliser :
 
-- dans une **page web**, consultable sur le Mac ou depuis un téléphone, une tablette ou un autre PC du même réseau Wi-Fi ;
-- avec des boutons **Pivoter**, **Plein écran** et **Capture** ;
-- la caméra est retrouvée automatiquement si on la débranche et la rebranche.
+- une **page web**, consultable sur le Mac ou depuis un téléphone, une tablette ou un autre PC du même réseau Wi-Fi, avec des boutons **Pivoter**, **Plein écran** et **Capture** ; la caméra est retrouvée automatiquement si on la débranche et la rebranche ;
+- une **application Mac** (`ProbeView.app`) avec rotation, **photos** et **enregistrement vidéo**.
 
 ### Caméras compatibles
 
@@ -79,26 +78,45 @@ Si macOS bloque le double-clic sur `start-server.command` (« impossible de vér
 - `http://…:8080/stream.mjpg` — le flux vidéo seul (s'ouvre aussi dans **VLC** : *Fichier → Ouvrir un flux réseau*)
 - `http://…:8080/snapshot.jpg` — la dernière image
 
+### Application Mac
+
+Une fenêtre avec l'image en direct, à la taille de la fenêtre :
+
+| Bouton | Raccourci | Effet |
+|---|---|---|
+| **↻ Pivoter** | `R` | tourne l'image d'un quart de tour (réglage mémorisé) |
+| **Photo** | `Espace` | enregistre l'image affichée en JPEG |
+| **● Enregistrer** / **■ Arrêter** | `V` | enregistre une vidéo MP4 (H.264, lisible par QuickTime) |
+| **Dossier** | | ouvre le dossier des captures dans le Finder |
+
+Photos et vidéos sont enregistrées dans **`~/Desktop/ProbeView`** (dossier *ProbeView* sur le Bureau), avec la rotation choisie. La rotation est bloquée pendant un enregistrement. À la première capture, macOS peut demander si ProbeView peut accéder au Bureau : acceptez.
+
+**Fabriquer l'application** (une seule fois, après le premier lancement de `start-server.command`, qui prépare l'environnement Python) :
+
+```bash
+brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+source .venv/bin/activate
+pip install pyinstaller
+pyinstaller --windowed --noconfirm --clean --name ProbeView \
+  --add-binary "$(readlink -f /opt/homebrew/lib/libusb-1.0.dylib):." app.py
+cp -R dist/ProbeView.app /Applications/
+```
+
+`ProbeView.app` est ensuite dans **Applications** : lancez-la depuis le Launchpad ou Spotlight, ou glissez-la dans le Dock. Elle embarque Python et libusb, elle fonctionne sans le dossier du projet. Au premier lancement, si macOS la bloque (application non signée), faites clic droit → **Ouvrir**.
+
+Sans fabriquer l'application : `source .venv/bin/activate` puis `python app.py`.
+
+> La page web et l'application ne peuvent pas utiliser la caméra en même temps : fermez l'une avant d'ouvrir l'autre.
+
 ### Autres outils (facultatifs)
 
 | Script | Usage |
 |---|---|
 | `python grab.py` | enregistre une image dans `frame-0001.jpg` |
 | `python view.py` | aperçu dans une fenêtre simple (touche `q` pour quitter) |
-| `python app.py` | petite appli de bureau avec un bouton « Save Frame » (enregistre dans `~/Desktop/ProbeView`) — nécessite Tkinter : `brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')` |
 | `python vcam.py` | expose la caméra comme webcam virtuelle via OBS — nécessite OBS Studio et `pip install pyvirtualcam` |
 
 Lancez-les après avoir activé l'environnement : `source .venv/bin/activate`.
-
-Pour fabriquer une appli `ProbeView.app` à double-cliquer (à partir de `app.py`) :
-
-```bash
-source .venv/bin/activate
-pip install pyinstaller
-pyinstaller --windowed --noconfirm --clean --name ProbeView \
-  --add-binary "$(readlink -f /opt/homebrew/lib/libusb-1.0.dylib):." app.py
-# résultat : dist/ProbeView.app
-```
 
 ### Bon à savoir
 
@@ -125,11 +143,12 @@ pyinstaller --windowed --noconfirm --clean --name ProbeView \
 
 Many cheap USB endoscopes (often sold with the **Useeplus** app) officially work only with Android phones or iPhones. Plug one into a Mac and nothing happens: they are not standard webcams and there is no macOS app.
 
-ProbeView talks to the camera directly and shows its picture:
+ProbeView talks to the camera directly. Two ways to use it:
 
-- in a **web page**, on the Mac itself or from a phone, tablet or another computer on the same Wi-Fi;
-- with **Rotate**, **Fullscreen** and **Snapshot** buttons (the page UI is in French);
-- the camera is picked up again automatically if you unplug and replug it.
+- a **web page**, on the Mac itself or from a phone, tablet or another computer on the same Wi-Fi, with **Rotate**, **Fullscreen** and **Snapshot** buttons; the camera is picked up again automatically if you unplug and replug it;
+- a **Mac app** (`ProbeView.app`) with rotation, **photos** and **video recording**.
+
+Both interfaces are in French.
 
 ### Supported cameras
 
@@ -191,26 +210,45 @@ If macOS refuses to open `start-server.command` ("unidentified developer"), righ
 - `http://…:8080/stream.mjpg` — the raw video stream (also opens in **VLC**: *File → Open Network*)
 - `http://…:8080/snapshot.jpg` — the latest frame
 
+### Mac app
+
+A window with the live picture, scaled to the window:
+
+| Button | Key | Action |
+|---|---|---|
+| **↻ Pivoter** (rotate) | `R` | rotates the picture a quarter turn (remembered) |
+| **Photo** | `Space` | saves the displayed picture as JPEG |
+| **● Enregistrer** / **■ Arrêter** (record / stop) | `V` | records an MP4 video (H.264, plays in QuickTime) |
+| **Dossier** (folder) | | opens the captures folder in Finder |
+
+Photos and videos go to **`~/Desktop/ProbeView`** (a *ProbeView* folder on your Desktop), with the chosen rotation. Rotation is locked while recording. On the first capture, macOS may ask whether ProbeView can access your Desktop: allow it.
+
+**Build the app** (once, after running `start-server.command` a first time, which sets up the Python environment):
+
+```bash
+brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+source .venv/bin/activate
+pip install pyinstaller
+pyinstaller --windowed --noconfirm --clean --name ProbeView \
+  --add-binary "$(readlink -f /opt/homebrew/lib/libusb-1.0.dylib):." app.py
+cp -R dist/ProbeView.app /Applications/
+```
+
+`ProbeView.app` is then in **Applications**: open it from Launchpad or Spotlight, or drag it to the Dock. It bundles Python and libusb, so it works without the project folder. If macOS blocks it on first launch (unsigned app), right-click → **Open**.
+
+Without building: `source .venv/bin/activate` then `python app.py`.
+
+> The web page and the app can't use the camera at the same time: close one before opening the other.
+
 ### Other tools (optional)
 
 | Script | Purpose |
 |---|---|
 | `python grab.py` | saves one frame to `frame-0001.jpg` |
 | `python view.py` | simple preview window (`q` to quit) |
-| `python app.py` | small desktop app with a "Save Frame" button (saves to `~/Desktop/ProbeView`) — needs Tkinter: `brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')` |
 | `python vcam.py` | exposes the camera as a virtual webcam through OBS — needs OBS Studio and `pip install pyvirtualcam` |
 
 Run them after activating the environment: `source .venv/bin/activate`.
-
-To build a double-clickable `ProbeView.app` (from `app.py`):
-
-```bash
-source .venv/bin/activate
-pip install pyinstaller
-pyinstaller --windowed --noconfirm --clean --name ProbeView \
-  --add-binary "$(readlink -f /opt/homebrew/lib/libusb-1.0.dylib):." app.py
-# output: dist/ProbeView.app
-```
 
 ### Good to know
 
