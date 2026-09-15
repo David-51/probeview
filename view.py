@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""view.py — Step 5: live preview loop.
+"""view.py — live preview in an OpenCV window.
 
 Default: open an OpenCV window and stream until you press 'q' or ESC.
 --headless N: no window; read frames for N seconds, report sustained FPS and any
-              USB errors. Used to verify the streaming pipeline where no display
-              is available.
+              USB errors (useful to check the camera without a display).
 
 Run:  .venv/bin/python view.py            # visible window, press q to quit
       .venv/bin/python view.py --headless 30
@@ -37,10 +36,9 @@ def headless(cam, seconds):
     fps = frames / elapsed if elapsed else 0
     print(f"frames={frames}  empty/decode-fail={bad}  usb_errors={errors}  "
           f"elapsed={elapsed:.1f}s  -> {fps:.1f} FPS")
-    if frames > 0 and errors == 0:
-        print("GATE 5 (headless): PASS")
-    else:
-        sys.exit("GATE 5 (headless): FAIL")
+    if frames == 0 or errors:
+        sys.exit("FAIL: no frames or USB errors")
+    print("OK")
 
 
 def windowed(cam):

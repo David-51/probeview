@@ -1,10 +1,19 @@
+# Python
 .venv/
-reference/
 __pycache__/
 *.pyc
-frame-*.jpg
-diag-*.jpg
+
+# Build (PyInstaller)
 build/
 dist/
 *.app
+*.spec
+
+# Local captures and scratch
+frame-*.jpg
+records/
+reference/
+
+# OS / tools
 .DS_Store
+.claude/

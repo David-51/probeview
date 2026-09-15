@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""vcam.py — Step 6 (stretch): expose the endoscope as a system virtual camera.
+"""vcam.py — expose the endoscope as a system virtual camera (via OBS).
 
 Pipes live frames into pyvirtualcam's OBS backend so the endoscope shows up as a
 selectable webcam in Zoom / Meet / Photo Booth / QuickTime.
 
-PREREQUISITE (one-time, macOS): OBS Studio 30.0+ must be installed and its Virtual
-Camera started once (Tools -> Start Virtual Camera), which installs and activates a
-System Extension (approve it in System Settings > Privacy & Security; a restart may
-be required). Without it pyvirtualcam raises "OBS Virtual Camera is not installed".
+PREREQUISITE (one-time, macOS): `pip install pyvirtualcam`, and OBS Studio 30.0+
+installed with its Virtual Camera started once (Tools -> Start Virtual Camera), which
+installs and activates a System Extension (approve it in System Settings > Privacy &
+Security; a restart may be required). Without it pyvirtualcam raises "OBS Virtual Camera is not installed".
 
 Run:  .venv/bin/python vcam.py        # Ctrl-C to stop
 """
@@ -42,7 +42,7 @@ def main():
                 ok, frame = cam.read()
                 if not ok or frame is None:
                     continue
-                # pyvirtualcam wants RGB; supercamera/cv2 gives BGR.
+                # pyvirtualcam wants RGB; cv2 gives BGR.
                 vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 vcam.sleep_until_next_frame()
     except KeyboardInterrupt:

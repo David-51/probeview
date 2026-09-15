@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""grab.py — Step 4: the minimum proof. Save one JPEG frame from the endoscope.
-
-Uses the supercamera high-level API (it already implements the init handshake +
-12-byte-header strip + FFD8..FFD9 reassembly). Writes frame-0001.jpg.
+"""grab.py — save one JPEG frame from the endoscope.
 
 Run:  .venv/bin/python grab.py [--index N] [--out PATH]
 """
@@ -21,7 +18,7 @@ def main():
 
     devs = list_devices()
     if not devs:
-        sys.exit("FATAL: no supercamera device found (run probe.py first).")
+        sys.exit("FATAL: no endoscope found. Is it plugged in (data cable)?")
     print(f"found {len(devs)} device(s): " + ", ".join(repr(d) for d in devs))
 
     with Camera(index=args.index) as cam:
@@ -32,8 +29,6 @@ def main():
         with open(args.out, "wb") as f:
             f.write(jpeg)
         print(f"wrote {args.out}  ({len(jpeg)} bytes)")
-
-    print("GATE 4: PASS")
 
 
 if __name__ == "__main__":
