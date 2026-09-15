@@ -73,6 +73,7 @@ class ProbeViewApp:
                 continue
             if jpeg:
                 self.latest_jpeg = jpeg
+                self.frames += 1
 
     def _tick(self):
         if not self.running:
@@ -93,7 +94,6 @@ class ProbeViewApp:
                 rgb = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
                 self.latest_imgtk = ImageTk.PhotoImage(Image.fromarray(rgb))
                 self.video.config(image=self.latest_imgtk)
-                self.frames += 1
                 fps = self.frames / max(1e-6, time.monotonic() - self.t0)
                 self.status.config(text=f"Live · 640×480 · {fps:0.1f} FPS")
         self.root.after(33, self._tick)  # ~30 Hz UI refresh

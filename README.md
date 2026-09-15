@@ -85,7 +85,7 @@ Si macOS bloque le double-clic sur `start-server.command` (« impossible de vér
 |---|---|
 | `python grab.py` | enregistre une image dans `frame-0001.jpg` |
 | `python view.py` | aperçu dans une fenêtre simple (touche `q` pour quitter) |
-| `python app.py` | petite appli de bureau avec un bouton « Save Frame » (enregistre dans `~/Desktop/ProbeView`) — nécessite `brew install python-tk` |
+| `python app.py` | petite appli de bureau avec un bouton « Save Frame » (enregistre dans `~/Desktop/ProbeView`) — nécessite Tkinter : `brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')` |
 | `python vcam.py` | expose la caméra comme webcam virtuelle via OBS — nécessite OBS Studio et `pip install pyvirtualcam` |
 
 Lancez-les après avoir activé l'environnement : `source .venv/bin/activate`.
@@ -197,7 +197,7 @@ If macOS refuses to open `start-server.command` ("unidentified developer"), righ
 |---|---|
 | `python grab.py` | saves one frame to `frame-0001.jpg` |
 | `python view.py` | simple preview window (`q` to quit) |
-| `python app.py` | small desktop app with a "Save Frame" button (saves to `~/Desktop/ProbeView`) — needs `brew install python-tk` |
+| `python app.py` | small desktop app with a "Save Frame" button (saves to `~/Desktop/ProbeView`) — needs Tkinter: `brew install python-tk@$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])')` |
 | `python vcam.py` | exposes the camera as a virtual webcam through OBS — needs OBS Studio and `pip install pyvirtualcam` |
 
 Run them after activating the environment: `source .venv/bin/activate`.
